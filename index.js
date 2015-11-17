@@ -1,6 +1,6 @@
 var hooker = require('./src/hooker.js');
 
 // Testing
-var url = 'http://searchspring.com';
+var url = 'https://www.sbmtx.com';
 
-hooker.use(url);
+hooker.use(url, __dirname);

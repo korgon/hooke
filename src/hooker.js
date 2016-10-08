@@ -6,15 +6,32 @@ var hoxy = require('hoxy');
 var http = require('http');
 
 var proxy;
+var options;
 
-function createNewProxy(url, rootdir) {
+var hooke = function() {
+	this.init = function(opts) {
+		options = opts;
+	}
+
+	this.proxy = function(url) {
+		options.url = url;
+		if (proxy && proxy.close) {
+			proxy.close(function() {
+				createNewProxy(url, options.dir);
+			});
+		} else {
+			createNewProxy(url, options.dir);
+		}
+	}
+};
+
+function createNewProxy(url) {
 	var proxy_host = url.replace(/\/$/, '');
-	logit.log('Proxy', proxy_host, 'pass');
-	console.log(rootdir);
+	logit.log('Proxy Started', proxy_host, 'pass');
 
 	proxy = hoxy.createServer({
-		reverse: proxy_host + '/'
-	}).listen(9000);
+		reverse: proxy_host
+	}).listen(options.port);
 
 	proxy.log('error warn', function(event) {
 		logit.log('Error', '', 'fail');
@@ -43,20 +60,18 @@ function createNewProxy(url, rootdir) {
 
 		logit.log('Response Intercept', '', 'warn');
 
-		// view the request again
-		logit.log('Request', '', 'none');
-		console.log(req);
+		if(options.debug) logit.log('Request', '', 'none');
+		if(options.debug) console.log(req);
 
-		if (resp.statusCode == 301) {
+		if(options.debug) logit.log('Original Response', '', 'none');
+		if(options.debug) console.log(resp);
+
+		resp.headers['cache-control'] = 'max-age=1';
+
+		if (resp.statusCode == 301 || resp.statusCode == 302) {
 			logit.log('Redirect', 'Encountered a redirect... ', 'red');
-			console.log(resp);
-			if (resp.headers.location.match(/http/)) {
-				return cycle.serve({
-					path: rootdir + '/resources/invalid.html'
-				});
-			} else if (resp.headers && resp.headers.location) {
-				logit.log('Redirect', resp.headers.location, 'fail');
-			}
+
+			resp.headers.location = 'badhooke?req=' + encodeURIComponent(options.url) + '&resp=' + encodeURIComponent(resp.headers.location);
 		}
 
 		// modify things
@@ -73,9 +88,20 @@ function createNewProxy(url, rootdir) {
 		});
 
 		// view the response
-		logit.log('Response', '', 'none');
-		console.log(resp)
+		if(options.debug) logit.log('Modified Response', '', 'none');
+		if(options.debug) console.log(resp);
 
+	});
+
+	// Serve up invalid.html
+	proxy.intercept({
+		phase: 'request',
+		fullUrl: proxy_host + '/badhooke'
+	}, function(req, resp, cycle) {
+		if(options.debug) logit.log('Hooke', 'serving invalid.html (' + options.koa_path + '/resources/invalid.html)', 'green');
+		return cycle.serve({
+			path: options.koa_path + '/resources/invalid.html'
+		});
 	});
 
 	// Serve up hooke.js
@@ -83,9 +109,9 @@ function createNewProxy(url, rootdir) {
 		phase: 'request',
 		fullUrl: proxy_host + '/hooke/hooke.js'
 	}, function(req, resp, cycle) {
-		logit.log('Hooke', 'serving hooke.js (' + rootdir + '/resources/hooke.js)', 'green');
+		if(options.debug) logit.log('Hooke', 'serving hooke.js (' + options.loader_path + '/resources/hooke.js)', 'green');
 		return cycle.serve({
-			path: rootdir + '/resources/hooke.js'
+			path: options.loader_path + '/resources/hooke.js'
 		});
 	});
 
@@ -94,23 +120,12 @@ function createNewProxy(url, rootdir) {
 		phase: 'request',
 		fullUrl: proxy_host + '/hooke/hooke.css'
 	}, function(req, resp, cycle) {
-		logit.log('Hooke', 'serving hooke.css', 'green');
-		console.log(rootdir + '/resources/hooke.css');
+		if(options.debug) logit.log('Hooke', 'serving hooke.css', 'green');
+		if(options.debug) console.log(rootdir + '/resources/hooke.css');
 		return cycle.serve({
 			path: rootdir + '/resources/hooke.css'
 		});
 	});
 }
 
-
-module.exports = {
-	use: function(url, rootdir) {
-		if (proxy && proxy.close) {
-			proxy.close(function() {
-				createNewProxy(url, rootdir);
-			});
-		} else {
-			createNewProxy(url, rootdir);
-		}
-	}
-}
+module.exports = new hooke;

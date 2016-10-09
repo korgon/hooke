@@ -2,7 +2,8 @@ var options = {
 	port: 9000,
 	loader_path: __dirname,
 	koa_path: __dirname,
-	debug: true
+	script_location: '/hooke/hooke.js',
+	debug: false
 }
 
 var hooker = require('./src/hooker.js');

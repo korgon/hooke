@@ -1,50 +1,74 @@
-// used for loging in springboard
-// styled for easy reading and identification
+/**
+* @module logit
+*/
 
-(function() {
+var colors = require('colors');
 
-  var colors = require('colors');
+/**
+* Output clearly marked messages to the console
+* @param {string} alert
+* @param {string} message
+* @param {string} color
+* OR
+* @param {object} { alert, message, color }
+*/
+function logit() {
+  var color_options = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey'];
+  var color_states = { pass: 'green', fail: 'red', warn: 'yellow' }
 
-  var log = function(alert, message, type) {
-    alert = ' ' + alert + ' ';
-    var boxtopper = '┌' + '─'.repeat(alert.length) + '┐';
-    var boxbottom = '└' + '─'.repeat(alert.length) + '┘';
-    switch (type) {
-      case 'blue':
-        console.log(boxtopper.blue);
-        console.log('│'.blue + alert.bold.blue + '│'.blue + ' ' + message.blue);
-        console.log(boxbottom.blue);
-        break;
-      case 'pass':
-      case 'green':
-        console.log(boxtopper.green);
-        console.log('│'.green + alert.bold.green + '│'.green + ' ' + message.green);
-        console.log(boxbottom.green);
-        break;
-      case 'fail':
-      case 'red':
-        console.log(boxtopper.red);
-        console.log('│'.red + alert.bold.red + '│'.red + ' ' + message.red);
-        console.log(boxbottom.red);
-        break;
-      case 'warn':
-      case 'yellow':
-        console.log(boxtopper.yellow);
-        console.log('│'.yellow + alert.bold.yellow + '│'.yellow + ' ' + message.yellow);
-        console.log(boxbottom.yellow);
-        break;
-      case 'white':
-      default:
-        console.log(boxtopper.white);
-        console.log('│'.white + alert.bold.white + '│'.white + ' ' + message.white);
-        console.log(boxbottom.white);
-        break;
+  return {
+    log: function log(entry) {
+      var args = Array.prototype.slice.call(arguments);
+
+      if (entry === undefined) return;
+
+      if (typeof entry === 'string') {
+        if (args.length > 0) {
+          var alert = args[0] || '';
+          var message = args[1] || '';
+          var color = args[2] || 'white';
+        }
+
+        entry = {
+          color: color,
+          alert: alert,
+          message: message
+        }
+      }
+
+      if (typeof entry === 'object' && entry.alert.length) {
+        if (color_options.indexOf(entry.color) == -1) {
+          if (color_states[entry.color]) {
+            entry.color = color_states[entry.color];
+          } else {
+            entry.color = 'white';
+          }
+        }
+        if (!entry.message) {
+          entry.message = '';
+        }
+      } else {
+        return;
+      }
+
+      entry.alert = ' ' + entry.alert + ' ';
+
+      colors.setTheme({
+        custom: [entry.color]
+      })
+
+      var boxtopper = '┌' + '─'.repeat(entry.alert.length) + '┐';
+      var boxbottom = '└' + '─'.repeat(entry.alert.length) + '┘';
+
+      console.log(boxtopper.custom);
+      console.log('│'.custom + entry.alert.bold.custom + '│'.custom + ' ' + entry.message.custom);
+      console.log(boxbottom.custom);
     }
   }
+}
 
-  // returned object
-  module.exports = {
-    log: log
-  }
-
-})();
+/**
+* Export Logit Object
+* @type {object}
+*/
+module.exports = new logit();
